@@ -54,4 +54,99 @@ jobs:
           COMMIT_MSG: ${{ inputs.commit_msg }}
           COMMIT_AUTHOR: ${{ inputs.commit_author }}
         run: |
-          node scripts/create-github-release.js
+          # Get commit information if not provided
+          FINAL_COMMIT_SHA=${COMMIT_SHA:-$(git rev-parse HEAD)}
+          FINAL_COMMIT_MSG=${COMMIT_MSG:-$(git log -1 --pretty=%B | head -n 1)}
+          FINAL_COMMIT_AUTHOR=${COMMIT_AUTHOR:-$(git log -1 --pretty=%an)}
+          
+          # Generate tag name if not provided
+          if [ -z "$TAG_NAME" ]; then
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            TAG_NAME="v$(date +%Y.%m.%d)-${TIMESTAMP}"
+          fi
+          
+          # Get git changes
+          GIT_CHANGES=$(git log -1 --stat --oneline || echo 'No changes')
+          
+          # Create release notes file
+          cat > release_notes.md <<EOF
+          ## Deployment Release
+          
+          **Deployed:** $(date +'%Y-%m-%d %H:%M:%S UTC')
+          **Commit:** \`${FINAL_COMMIT_SHA:0:7}\`
+          **Author:** $FINAL_COMMIT_AUTHOR
+          
+          ### Commit Message
+          $FINAL_COMMIT_MSG
+          
+          ### Changes
+          \`\`\`
+          $GIT_CHANGES
+          \`\`\`
+          EOF
+          
+          # Create git tag
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG_NAME" -m "Deployment: $FINAL_COMMIT_MSG (SHA: ${FINAL_COMMIT_SHA:0:7})"
+          git push origin "$TAG_NAME"
+          
+          # Create GitHub Release using API with Node.js for JSON escaping
+          TAG_NAME="$TAG_NAME" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" node << 'NODE_SCRIPT'
+          const fs = require('fs');
+          const https = require('https');
+          
+          const tagName = process.env.TAG_NAME;
+          const releaseNotes = fs.readFileSync('release_notes.md', 'utf8');
+          const githubToken = process.env.GITHUB_TOKEN;
+          const repository = process.env.GITHUB_REPOSITORY;
+          
+          const data = JSON.stringify({
+            tag_name: tagName,
+            name: `Release ${tagName}`,
+            body: releaseNotes,
+            draft: false,
+            prerelease: false
+          });
+          
+          const options = {
+            hostname: 'api.github.com',
+            path: `/repos/${repository}/releases`,
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${githubToken}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json',
+              'Content-Length': data.length,
+              'User-Agent': 'GitHub-Actions'
+            }
+          };
+          
+          const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => { body += chunk; });
+            res.on('end', () => {
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                console.log(`✅ Created GitHub Release: ${tagName}`);
+                console.log(`🔗 Release URL: https://github.com/${repository}/releases/tag/${tagName}`);
+              } else {
+                console.error(`❌ Failed to create release: ${res.statusCode}`);
+                console.error(body);
+                process.exit(1);
+              }
+            });
+          });
+          
+          req.on('error', (e) => {
+            console.error('❌ Error creating release:', e.message);
+            process.exit(1);
+          });
+          
+          req.write(data);
+          req.end();
+          NODE_SCRIPT
+          
+          # Clean up release notes file
+          rm -f release_notes.md
+          
+          echo "✅ Created release tag and GitHub Release: $TAG_NAME"
