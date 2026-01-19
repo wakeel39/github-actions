@@ -1,0 +1,57 @@
+name: Create GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      github_token:
+        required: true
+        type: string
+        description: 'GitHub token for creating releases'
+      repository:
+        required: true
+        type: string
+        description: 'Repository in format owner/repo'
+      tag_name:
+        required: false
+        type: string
+        description: 'Custom tag name (auto-generated if not provided)'
+      commit_sha:
+        required: false
+        type: string
+        description: 'Commit SHA (fetched from git if not provided)'
+      commit_msg:
+        required: false
+        type: string
+        description: 'Commit message (fetched from git if not provided)'
+      commit_author:
+        required: false
+        type: string
+        description: 'Commit author (fetched from git if not provided)'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ inputs.github_token }}
+          GITHUB_REPOSITORY: ${{ inputs.repository }}
+          TAG_NAME: ${{ inputs.tag_name }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          COMMIT_MSG: ${{ inputs.commit_msg }}
+          COMMIT_AUTHOR: ${{ inputs.commit_author }}
+        run: |
+          node scripts/create-github-release.js
