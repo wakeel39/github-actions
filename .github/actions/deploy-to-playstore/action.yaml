@@ -150,7 +150,7 @@ runs:
           echo "track=internal" >> $GITHUB_OUTPUT
         fi
 
-    - name: Deploy to Google Play Store
+    - name: Deploy to Google Play Store track
       shell: bash
       working-directory: ${{ inputs.fastlane_directory }}
       run: |
