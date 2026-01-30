@@ -1,4 +1,4 @@
-name: 'Create Flutter Build'
+name: 'Create Flutter Test'
 description: 'Sets up Java and Flutter, gets dependencies, runs doctor, analyzer, and tests'
 
 inputs:

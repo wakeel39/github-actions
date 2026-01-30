@@ -1,4 +1,4 @@
-# Create Flutter Build
+# Create Flutter Test
 
 Sets up Java and Flutter, fetches dependencies, and runs Flutter doctor, analyzer, and tests. Use this action in a workflow to validate your Flutter project (dependencies, tooling, static analysis, and unit tests) before building or deploying.
 

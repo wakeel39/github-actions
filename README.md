@@ -6,7 +6,8 @@ Reusable GitHub Actions used across our workflows. Each action lives in `.github
 
 | Action | Description |
 |--------|-------------|
-| [**create-flutter-build**](.github/actions/create-flutter-build/README.md) | Sets up Java/Flutter, pub get, doctor, analyzer, and tests for Flutter projects. |
+| [**build-android-appbundle**](.github/actions/build-android-appbundle/README.md) | Builds a signed Flutter Android AAB; sets version, keystore, key.properties, uploads artifact. |
+| [**create-flutter-build**](.github/actions/create-flutter-build/README.md) | Flutter test: sets up Java/Flutter, pub get, doctor, analyzer, and tests for Flutter projects. |
 | [**create-release-tag**](.github/actions/create-release-tag/README.md) | Creates a git tag and GitHub Release with deployment info (commit, author, message, changes). |
 | [**deploy-to-playstore**](.github/actions/deploy-to-playstore/README.md) | Deploys an Android AAB to Google Play via Fastlane; sets up Java/Flutter/Ruby, runs Fastlane, optional release tag. |
 
@@ -36,6 +37,9 @@ For inputs and examples, see each action’s README in the table above.
 ```
 .github/
   actions/
+    build-android-appbundle/
+      action.yaml    # Action definition
+      README.md      # Action documentation
     create-flutter-build/
       action.yaml    # Action definition
       README.md      # Action documentation
