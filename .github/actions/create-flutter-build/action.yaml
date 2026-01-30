@@ -1,0 +1,77 @@
+name: 'Create Flutter Build'
+description: 'Sets up Java and Flutter, gets dependencies, runs doctor, analyzer, and tests'
+
+inputs:
+  flutter_version:
+    description: 'Flutter version to install'
+    required: false
+    default: '3.24.0'
+  flutter_channel:
+    description: 'Flutter channel (stable, beta, master)'
+    required: false
+    default: 'stable'
+  java_version:
+    description: 'Java version for setup-java'
+    required: false
+    default: '17'
+  run_doctor:
+    description: 'Whether to run flutter doctor -v'
+    required: false
+    default: 'true'
+  run_analyze:
+    description: 'Whether to run flutter analyze'
+    required: false
+    default: 'true'
+  analyze_no_fatal_infos:
+    description: 'Pass --no-fatal-infos to flutter analyze'
+    required: false
+    default: 'true'
+  analyze_no_fatal_warnings:
+    description: 'Pass --no-fatal-warnings to flutter analyze'
+    required: false
+    default: 'true'
+  run_tests:
+    description: 'Whether to run flutter test'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java_version }}
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ inputs.flutter_version }}
+        channel: ${{ inputs.flutter_channel }}
+
+    - name: Get Flutter dependencies
+      shell: bash
+      run: flutter pub get
+
+    - name: Verify Flutter installation
+      if: inputs.run_doctor == 'true'
+      shell: bash
+      run: flutter doctor -v
+
+    - name: Run Flutter analyzer
+      if: inputs.run_analyze == 'true'
+      shell: bash
+      run: |
+        EXTRA=""
+        [ "${{ inputs.analyze_no_fatal_infos }}" == "true" ] && EXTRA="$EXTRA --no-fatal-infos"
+        [ "${{ inputs.analyze_no_fatal_warnings }}" == "true" ] && EXTRA="$EXTRA --no-fatal-warnings"
+        flutter analyze $EXTRA
+
+    - name: Run Flutter tests
+      if: inputs.run_tests == 'true'
+      shell: bash
+      run: flutter test

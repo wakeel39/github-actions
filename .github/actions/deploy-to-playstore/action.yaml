@@ -1,0 +1,176 @@
+name: 'Deploy to Play Store'
+description: 'Deploys an Android App Bundle (AAB) to Google Play using Fastlane, with optional release tagging'
+
+inputs:
+  google_play_service_account_json:
+    description: 'JSON content of the Google Play service account (store as secret)'
+    required: true
+  aab_artifact_name:
+    description: 'Name of the upload-artifact that contains the AAB'
+    required: false
+    default: 'app-bundle'
+  aab_path:
+    description: 'Path under workspace where the AAB will be placed (artifact is extracted here)'
+    required: false
+    default: 'build/app/outputs/bundle/release/'
+  version_name:
+    description: 'App version name (e.g. 1.2.3), used for release tag when create_release_tag is true'
+    required: false
+  track:
+    description: 'Play Store track override (internal, alpha, beta, production). If empty, auto-detected from ref/event'
+    required: false
+  flutter_version:
+    description: 'Flutter version for setup-flutter'
+    required: false
+    default: '3.24.0'
+  java_version:
+    description: 'Java version for setup-java'
+    required: false
+    default: '17'
+  ruby_version:
+    description: 'Ruby version for Fastlane'
+    required: false
+    default: '3.2'
+  fastlane_directory:
+    description: 'Directory containing Fastlane (Gemfile, Appfile, etc.)'
+    required: false
+    default: 'fastlane'
+  create_release_tag:
+    description: 'Whether to create a GitHub release tag after successful deploy'
+    required: false
+    default: 'true'
+  github_token:
+    description: 'GitHub token for creating release tag (pass e.g. github.token when create_release_tag is true)'
+    required: false
+  repository:
+    description: 'Repository in owner/repo format for release tag (pass e.g. github.repository when create_release_tag is true)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java_version }}
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ inputs.flutter_version }}
+        channel: 'stable'
+
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby_version }}
+        bundler-cache: true
+
+    - name: Install Fastlane dependencies
+      shell: bash
+      working-directory: ${{ inputs.fastlane_directory }}
+      run: bundle install
+
+    - name: Download AAB artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.aab_artifact_name }}
+        path: ${{ inputs.aab_path }}
+
+    - name: Verify AAB file exists
+      shell: bash
+      run: |
+        ls -la ${{ inputs.aab_path }}
+        if [ ! -f "${{ inputs.aab_path }}app-release.aab" ]; then
+          echo "AAB file not found at expected location"
+          find . -name "*.aab" -type f
+          exit 1
+        fi
+        echo "AAB file found: $(pwd)/${{ inputs.aab_path }}app-release.aab"
+
+    - name: Setup Google Play Service Account
+      shell: bash
+      env:
+        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ inputs.google_play_service_account_json }}
+      run: |
+        python3 << 'PYTHON'
+        import json
+        import os
+        import sys
+
+        json_content = os.environ.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', '')
+        if not json_content or json_content.strip() == "":
+            print("✗ Error: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is empty")
+            sys.exit(1)
+
+        try:
+            data = json.loads(json_content)
+            print("✓ JSON content is valid")
+            required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+            missing_fields = [field for field in required_fields if field not in data]
+            if missing_fields:
+                print(f"⚠ Warning: JSON might be missing fields: {missing_fields}")
+
+            with open('google-play-service-account.json', 'w') as f:
+                f.write(json_content)
+            with open('google-play-service-account.json', 'r') as f:
+                json.load(f)
+            print("✓ Service account JSON file created successfully")
+            print(f"✓ File size: {os.path.getsize('google-play-service-account.json')} bytes")
+        except json.JSONDecodeError as e:
+            print(f"✗ JSON content is invalid: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            sys.exit(1)
+        PYTHON
+        if [ ! -f "google-play-service-account.json" ]; then
+          echo "Error: Service account JSON file was not created"
+          exit 1
+        fi
+        ls -lh google-play-service-account.json
+
+    - name: Determine release track
+      id: track
+      shell: bash
+      run: |
+        TRACK_INPUT="${{ inputs.track }}"
+        if [ -n "$TRACK_INPUT" ]; then
+          echo "track=$TRACK_INPUT" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          EVENT_TRACK="${{ github.event.inputs.track }}"
+          echo "track=${EVENT_TRACK:-internal}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          echo "track=production" >> $GITHUB_OUTPUT
+        else
+          echo "track=internal" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Deploy to Google Play Store
+      shell: bash
+      working-directory: ${{ inputs.fastlane_directory }}
+      run: |
+        bundle exec fastlane android deploy track:${{ steps.track.outputs.track }}
+      env:
+        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ inputs.google_play_service_account_json }}
+
+    - name: Create Release Tag
+      if: success() && inputs.create_release_tag == 'true' && inputs.version_name != '' && inputs.github_token != '' && inputs.repository != ''
+      continue-on-error: true
+      uses: wakeel39/github-actions/.github/actions/create-release-tag@main
+      with:
+        github_token: ${{ inputs.github_token }}
+        repository: ${{ inputs.repository }}
+        tag_name: v${{ inputs.version_name }}
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      run: |
+        rm -f google-play-service-account.json
+        rm -f android/key.properties
+        rm -f android/app/keystore.jks
