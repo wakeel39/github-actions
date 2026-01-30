@@ -4,7 +4,10 @@ description: 'Deploys an Android App Bundle (AAB) to Google Play using Fastlane,
 inputs:
   google_play_service_account_json:
     description: 'JSON content of the Google Play service account (store as secret)'
-    required: true
+    required: false
+  service_account_json:
+    description: 'Alias for google_play_service_account_json (use one or the other)'
+    required: false
   aab_artifact_name:
     description: 'Name of the upload-artifact that contains the AAB'
     required: false
@@ -15,6 +18,12 @@ inputs:
     default: 'build/app/outputs/bundle/release/'
   version_name:
     description: 'App version name (e.g. 1.2.3), used for release tag when create_release_tag is true'
+    required: false
+  version_code:
+    description: 'App version code (optional, not used by deploy; pass from build job if desired)'
+    required: false
+  tag_name:
+    description: 'Override release tag name (default is v + version_name)'
     required: false
   track:
     description: 'Play Store track override (internal, alpha, beta, production). If empty, auto-detected from ref/event'
@@ -97,7 +106,7 @@ runs:
     - name: Setup Google Play Service Account
       shell: bash
       env:
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ inputs.google_play_service_account_json }}
+        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ inputs.google_play_service_account_json || inputs.service_account_json }}
       run: |
         python3 << 'PYTHON'
         import json
@@ -158,15 +167,15 @@ runs:
       run: |
         bundle exec fastlane android deploy track:${{ steps.track.outputs.track }}
       env:
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ inputs.google_play_service_account_json }}
+        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ inputs.google_play_service_account_json || inputs.service_account_json }}
 
     - name: Create Release Tag
-      if: success() && inputs.create_release_tag == 'true' && inputs.version_name != '' && inputs.github_token != '' && inputs.repository != ''
+      if: success() && inputs.create_release_tag == 'true' && (inputs.version_name != '' || inputs.tag_name != '') && inputs.github_token != '' && inputs.repository != ''
       uses: wakeel39/github-actions/.github/actions/create-release-tag@main
       with:
         github_token: ${{ inputs.github_token }}
         repository: ${{ inputs.repository }}
-        tag_name: v${{ inputs.version_name }}
+        tag_name: ${{ inputs.tag_name || format('v{0}', inputs.version_name) }}
 
     - name: Cleanup
       if: always()

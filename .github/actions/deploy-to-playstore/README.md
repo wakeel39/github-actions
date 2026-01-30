@@ -35,10 +35,13 @@ Deploys an Android App Bundle (AAB) to Google Play using **Fastlane**. Use this 
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `google_play_service_account_json` | Yes | - | JSON content of the Google Play service account (use a secret). |
+| `google_play_service_account_json` | No* | - | JSON content of the Google Play service account (use a secret). *Or use `service_account_json`. |
+| `service_account_json` | No* | - | Alias for `google_play_service_account_json` (pass one or the other). |
 | `aab_artifact_name` | No | `app-bundle` | Name of the artifact that contains the AAB. |
 | `aab_path` | No | `build/app/outputs/bundle/release/` | Path where the artifact is extracted; AAB is expected at `<aab_path>/app-release.aab`. |
-| `version_name` | No | - | App version (e.g. `1.2.3`). Used for release tag when `create_release_tag` is true. |
+| `version_name` | No | - | App version (e.g. `1.2.3`). Used for release tag when `create_release_tag` is true (tag becomes `v{version_name}` unless `tag_name` is set). |
+| `version_code` | No | - | App version code (optional; accepted but not used by deploy). |
+| `tag_name` | No | - | Override release tag name (default is `v` + `version_name`). |
 | `track` | No | (auto) | Override Play track: `internal`, `alpha`, `beta`, `production`. |
 | `flutter_version` | No | `3.24.0` | Flutter version for setup. |
 | `java_version` | No | `17` | Java version for setup. |
