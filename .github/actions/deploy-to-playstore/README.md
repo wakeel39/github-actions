@@ -167,12 +167,13 @@ If your path or artifact name is different, set `aab_artifact_name` and `aab_pat
 
 - **Runner**: Ubuntu (e.g. `ubuntu-latest`); the action uses Bash and Python 3.
 - **Secrets**: `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` in your repo/organization secrets.
-- **Permissions**: For **release tags to work**, the deploy job must have `contents: write` so the token can push the tag and create the release. Add this to the job that uses this action:
+- **Permissions**: For **release tags to work**, the deploy job must allow the token to push tags and create releases. If the tagged commit contains `.github/workflows/*.yml`, GitHub also requires `workflows: write` (otherwise you get: *"refusing to allow a GitHub App to create or update workflow ... without `workflows` permission"*). Add this to the job that uses this action:
 
   ```yaml
   deploy:
     permissions:
-      contents: write
+      contents: write    # push tag, create release
+      workflows: write   # required when the commit has .github/workflows/ files
     steps:
       - uses: ...
   ```

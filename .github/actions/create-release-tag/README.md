@@ -61,7 +61,7 @@ If you don’t provide a tag name, it generates one in the form: `vYYYY.MM.DD-YY
 ## Requirements
 
 - **Bash** and **Node.js** (for the GitHub API call) must be available in the runner (default GitHub-hosted runners have both).
-- The `github_token` must have `contents: write` (or equivalent) so it can create releases and push tags.
+- The `github_token` must have `contents: write` so it can create releases and push tags. If the commit being tagged contains `.github/workflows/*.yml`, the job must also grant `workflows: write`, or the push will fail with *"refusing to allow a GitHub App to create or update workflow ... without `workflows` permission"*.
 
 ## Notes
 
