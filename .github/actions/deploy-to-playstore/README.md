@@ -164,7 +164,15 @@ If your path or artifact name is different, set `aab_artifact_name` and `aab_pat
 
 - **Runner**: Ubuntu (e.g. `ubuntu-latest`); the action uses Bash and Python 3.
 - **Secrets**: `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` in your repo/organization secrets.
-- **Permissions**: Job needs `contents: write` if you use `create_release_tag: true`.
+- **Permissions**: For **release tags to work**, the deploy job must have `contents: write` so the token can push the tag and create the release. Add this to the job that uses this action:
+
+  ```yaml
+  deploy:
+    permissions:
+      contents: write
+    steps:
+      - uses: ...
+  ```
 
 ## Using in your own repo
 

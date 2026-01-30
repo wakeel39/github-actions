@@ -65,9 +65,10 @@ runs:
         \`\`\`
         EOF
         
-        # Create git tag
+        # Create git tag and push (set remote URL so push uses token)
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
         git tag -a "$TAG_NAME" -m "Deployment: $FINAL_COMMIT_MSG (SHA: ${FINAL_COMMIT_SHA:0:7})"
         git push origin "$TAG_NAME"
         
@@ -94,7 +95,7 @@ runs:
           path: `/repos/${repository}/releases`,
           method: 'POST',
           headers: {
-            'Authorization': `token ${githubToken}`,
+            'Authorization': `Bearer ${githubToken}`,
             'Accept': 'application/vnd.github.v3+json',
             'Content-Type': 'application/json',
             'Content-Length': data.length,

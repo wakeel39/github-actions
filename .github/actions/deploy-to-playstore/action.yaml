@@ -51,6 +51,8 @@ runs:
   steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -160,7 +162,6 @@ runs:
 
     - name: Create Release Tag
       if: success() && inputs.create_release_tag == 'true' && inputs.version_name != '' && inputs.github_token != '' && inputs.repository != ''
-      continue-on-error: true
       uses: wakeel39/github-actions/.github/actions/create-release-tag@main
       with:
         github_token: ${{ inputs.github_token }}
